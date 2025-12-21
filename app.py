@@ -1,4 +1,5 @@
-import streamlit as st
+
+'''import streamlit as st
 import cv2
 import numpy as np
 import pickle
@@ -186,3 +187,90 @@ else:
             # Cleanup temp file
             if os.path.exists(img_path):
                 os.remove(img_path)
+'''
+
+import streamlit as st
+import cv2
+import numpy as np
+import pickle
+import io
+from PIL import Image
+from tensorflow.keras.models import load_model
+from googletrans import Translator
+from gtts import gTTS
+
+# -------------------- PAGE CONFIG --------------------
+st.set_page_config(
+    page_title="Indo-Pak Sign Language",
+    layout="centered"
+)
+
+# -------------------- LOAD MODELS --------------------
+@st.cache_resource
+def load_models():
+    vgg16 = load_model("vgg16.keras")
+    vgg19 = load_model("vgg19.keras")
+    return vgg16, vgg19
+
+@st.cache_resource
+def load_encoder():
+    with open("label_encoder.pkl", "rb") as f:
+        return pickle.load(f)
+
+model_vgg16, model_vgg19 = load_models()
+label_encoder = load_encoder()
+
+translator = Translator()
+
+# -------------------- IMAGE PREPROCESS --------------------
+def preprocess_image(img):
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    img = cv2.resize(img, (124, 124))
+    img = img / 255.0
+    img = np.expand_dims(img, axis=0)
+    return img
+
+# -------------------- PREDICTION --------------------
+def predict(img, model):
+    pred = model.predict(img)
+    idx = np.argmax(pred)
+    return label_encoder.inverse_transform([idx])[0]
+
+# -------------------- AUDIO --------------------
+def play_audio(text, lang):
+    tts = gTTS(text=text, lang=lang)
+    audio = io.BytesIO()
+    tts.write_to_fp(audio)
+    st.audio(audio.getvalue(), format="audio/mp3")
+
+# -------------------- LOGIN --------------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def login_page():
+    st.title("🔐 Login")
+    user = st.text_input("Username")
+    pwd = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if user == "Admin" and pwd == "123":
+            st.session_state.logged_in = True
+            st.success("Login successful")
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
+
+if not st.session_state.logged_in:
+    login_page()
+    st.stop()
+
+# -------------------- MAIN APP --------------------
+st.sidebar.title("Indo-Pak Sign Language")
+page = st.sidebar.radio("Navigate", ["Home", "Image Prediction", "Camera Prediction"])
+
+# -------------------- HOME --------------------
+if page == "Home":
+    st.title("🤟 Indo-Pak Sign Language Recognition")
+    st.write("""
+    This application recognizes **Indo-Pak sign language gest**
+
