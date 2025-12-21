@@ -131,21 +131,26 @@ streamlit run app.py
 * ☁️ Cloud deployment (AWS / GCP)
 
 ---
-🏗️ System Architecture
-Input:)
-    * Uploaded image OR live webcam frame
-    * Preprocessing
-    * Resize to 124×124
-    * Normalize pixel values
-    * Prediction
-    * CNN model (VGG16 / VGG19)
-    * Post-Processing
-    * Label decoding
-    * Urdu & English translation
-    * Audio generation
-    * Output
-         Text + Speech + UI visualization
+## 🏗️ System Architecture
 
+**Input**
+- Uploaded image OR live webcam frame
+
+**Preprocessing**
+- Resize to 124×124
+- Normalize pixel values
+
+**Prediction**
+- CNN model (VGG16 / VGG19)
+
+**Post-Processing**
+- Label decoding
+- Urdu & English translation
+- Audio generation
+
+**Output**
+- Text + Speech + UI visualization
+  
 ---
 ## 👨‍💻 Author
 
