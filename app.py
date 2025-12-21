@@ -194,18 +194,18 @@ import cv2
 import numpy as np
 import pickle
 import io
-from PIL import Image
 from tensorflow.keras.models import load_model
 from googletrans import Translator
+from PIL import Image
 from gtts import gTTS
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
-    page_title="Indo-Pak Sign Language",
+    page_title="Indo-Pak Sign Language Prediction",
     layout="centered"
 )
 
-# -------------------- LOAD MODELS --------------------
+# -------------------- LOAD MODELS (CACHED) --------------------
 @st.cache_resource
 def load_models():
     vgg16 = load_model("vgg16.keras")
@@ -213,35 +213,35 @@ def load_models():
     return vgg16, vgg19
 
 @st.cache_resource
-def load_encoder():
+def load_label_encoder():
     with open("label_encoder.pkl", "rb") as f:
         return pickle.load(f)
 
 model_vgg16, model_vgg19 = load_models()
-label_encoder = load_encoder()
+label_encoder = load_label_encoder()
 
 translator = Translator()
 
-# -------------------- IMAGE PREPROCESS --------------------
-def preprocess_image(img):
+# -------------------- IMAGE PREPROCESSING --------------------
+def preprocess_image(img, target_size=(124, 124)):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    img = cv2.resize(img, (124, 124))
+    img = cv2.resize(img, target_size)
     img = img / 255.0
     img = np.expand_dims(img, axis=0)
     return img
 
 # -------------------- PREDICTION --------------------
-def predict(img, model):
-    pred = model.predict(img)
-    idx = np.argmax(pred)
+def predict_class(img, model):
+    prediction = model.predict(img)
+    idx = np.argmax(prediction)
     return label_encoder.inverse_transform([idx])[0]
 
-# -------------------- AUDIO --------------------
+# -------------------- AUDIO (CLOUD SAFE) --------------------
 def play_audio(text, lang):
     tts = gTTS(text=text, lang=lang)
-    audio = io.BytesIO()
-    tts.write_to_fp(audio)
-    st.audio(audio.getvalue(), format="audio/mp3")
+    audio_bytes = io.BytesIO()
+    tts.write_to_fp(audio_bytes)
+    st.audio(audio_bytes.getvalue(), format="audio/mp3")
 
 # -------------------- LOGIN --------------------
 if "logged_in" not in st.session_state:
@@ -249,28 +249,97 @@ if "logged_in" not in st.session_state:
 
 def login_page():
     st.title("🔐 Login")
-    user = st.text_input("Username")
-    pwd = st.text_input("Password", type="password")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        if user == "Admin" and pwd == "123":
+        if username == "Admin" and password == "123":
             st.session_state.logged_in = True
             st.success("Login successful")
             st.rerun()
         else:
-            st.error("Invalid credentials")
+            st.error("Invalid username or password")
 
 if not st.session_state.logged_in:
     login_page()
     st.stop()
 
-# -------------------- MAIN APP --------------------
+# -------------------- SIDEBAR --------------------
 st.sidebar.title("Indo-Pak Sign Language")
-page = st.sidebar.radio("Navigate", ["Home", "Image Prediction", "Camera Prediction"])
+selection = st.sidebar.radio(
+    "Choose a Page",
+    ["Home", "Image Prediction", "Camera Prediction"]
+)
 
 # -------------------- HOME --------------------
-if page == "Home":
-    st.title("🤟 Indo-Pak Sign Language Recognition")
+if selection == "Home":
+    st.title("🤟 Indo-Pak Sign Language Prediction")
     st.write("""
-    This application recognizes **Indo-Pak sign language gest**
+    This application predicts **Indo-Pak sign language gestures**
+    using deep learning models (**VGG16 & VGG19**).
+
+    Features:
+    - Image & Webcam Prediction
+    - Urdu & English Translation
+    - Voice Output
+    """)
+
+# -------------------- IMAGE PREDICTION --------------------
+elif selection == "Image Prediction":
+    st.title("🖼️ Sign Language Prediction from Image")
+
+    uploaded_image = st.file_uploader(
+        "Upload an Image",
+        type=["jpg", "jpeg", "png"]
+    )
+
+    model_choice = st.radio("Select Model", ("VGG16", "VGG19"))
+
+    if uploaded_image is not None:
+        image = Image.open(uploaded_image).convert("RGB")
+        st.image(image, caption="Uploaded Image", use_column_width=True)
+
+        img = np.array(image)
+        img = preprocess_image(img)
+
+        if st.button("Predict"):
+            model = model_vgg16 if model_choice == "VGG16" else model_vgg19
+            predicted_class = predict_class(img, model)
+
+            urdu_text = translator.translate(predicted_class, src="en", dest="ur").text
+            english_text = translator.translate(urdu_text, src="ur", dest="en").text
+
+            st.success(f"Urdu: {urdu_text}")
+            st.info(f"English: {english_text}")
+
+            play_audio(urdu_text, "ur")
+            play_audio(english_text, "en")
+
+# -------------------- CAMERA PREDICTION --------------------
+elif selection == "Camera Prediction":
+    st.title("📷 Sign Language Prediction from Camera")
+
+    captured_image = st.camera_input("Capture a photo for prediction")
+    model_choice = st.radio("Select Model", ("VGG16", "VGG19"))
+
+    if captured_image is not None:
+        image = Image.open(captured_image).convert("RGB")
+        st.image(image, caption="Captured Image", use_column_width=True)
+
+        img = np.array(image)
+        img = preprocess_image(img)
+
+        model = model_vgg16 if model_choice == "VGG16" else model_vgg19
+        predicted_class = predict_class(img, model)
+
+        urdu_text = translator.translate(predicted_class, src="en", dest="ur").text
+        english_text = translator.translate(urdu_text, src="ur", dest="en").text
+
+        st.success(f"Urdu: {urdu_text}")
+        st.info(f"English: {english_text}")
+
+        play_audio(urdu_text, "ur")
+        play_audio(english_text, "en")
+
+
 
