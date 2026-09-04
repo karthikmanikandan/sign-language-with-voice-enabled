@@ -1,0 +1,9 @@
+python 3.8.20
+
+tensorflow==2.10.0
+
+opencv-python==4.11.0.86
+
+googletrans==4.0.0rc1
+
+NOTE: Create CONDA env for better performance and use GPU accelerate for faster training speed (recommended)
